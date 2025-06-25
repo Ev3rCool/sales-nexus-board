@@ -1,8 +1,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
-import type { Database } from '@/lib/supabase'
+import { supabase } from '@/integrations/supabase/client'
+import type { Database } from '@/integrations/supabase/types'
 
 type UserProfile = Database['public']['Tables']['users']['Row']
 
@@ -110,7 +110,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       options: {
         data: {
           name
-        }
+        },
+        emailRedirectTo: `${window.location.origin}/`
       }
     })
     if (error) throw error
