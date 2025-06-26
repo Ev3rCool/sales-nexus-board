@@ -1,6 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase, type Database } from '@/lib/supabase'
+import { supabase } from '@/integrations/supabase/client'
+import type { Database } from '@/integrations/supabase/types'
 
 type HostingPlan = Database['public']['Tables']['hosting_plans']['Row']
 type PlanDiscount = Database['public']['Tables']['plan_discounts']['Row']

@@ -1,6 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { supabase, type Database } from '@/lib/supabase'
+import { supabase } from '@/integrations/supabase/client'
+import type { Database } from '@/integrations/supabase/types'
 import { useAuth } from '@/contexts/AuthContext'
 
 type SalesEntry = Database['public']['Tables']['sales_entries']['Row']
