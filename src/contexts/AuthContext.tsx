@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
@@ -35,13 +36,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Get initial session
     const getInitialSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        console.log('Getting initial session...')
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('Error getting session:', error)
+          if (mounted) {
+            setLoading(false)
+          }
+          return
+        }
+
         console.log('Initial session:', session?.user?.email)
         
         if (mounted) {
           setUser(session?.user ?? null)
           if (session?.user) {
-            await fetchProfile(session.user.id)
+            // Try to fetch profile, but don't let it block the app
+            try {
+              await fetchProfile(session.user.id)
+            } catch (profileError) {
+              console.error('Profile fetch failed, but continuing:', profileError)
+              // Continue without profile - user can still use the app
+              setLoading(false)
+            }
           } else {
             setLoading(false)
           }
@@ -63,7 +81,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (mounted) {
         setUser(session?.user ?? null)
         if (session?.user) {
-          await fetchProfile(session.user.id)
+          // Try to fetch profile, but don't block on errors
+          try {
+            await fetchProfile(session.user.id)
+          } catch (profileError) {
+            console.error('Profile fetch failed during auth change:', profileError)
+            setLoading(false)
+          }
         } else {
           setProfile(null)
           setLoading(false)
@@ -89,37 +113,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Error fetching profile:', error)
-        // If user doesn't exist in users table, create them
+        
+        // If user doesn't exist in users table, try to create them
         if (error.code === 'PGRST116') {
           console.log('User profile not found, creating new profile...')
-          const { data: userData } = await supabase.auth.getUser()
-          if (userData.user) {
-            const { data: newProfile, error: insertError } = await supabase
-              .from('users')
-              .insert({
-                id: userData.user.id,
-                email: userData.user.email!,
-                name: userData.user.user_metadata?.name || null,
-                role: 'agent'
-              })
-              .select()
-              .single()
+          try {
+            const { data: userData } = await supabase.auth.getUser()
+            if (userData.user) {
+              const { data: newProfile, error: insertError } = await supabase
+                .from('users')
+                .insert({
+                  id: userData.user.id,
+                  email: userData.user.email!,
+                  name: userData.user.user_metadata?.name || null,
+                  role: 'agent'
+                })
+                .select()
+                .single()
 
-            if (insertError) {
-              console.error('Error creating profile:', insertError)
-              // Even if profile creation fails, don't keep loading forever
-              setLoading(false)
+              if (insertError) {
+                console.error('Error creating profile:', insertError)
+                throw insertError
+              } else {
+                console.log('Profile created successfully:', newProfile)
+                setProfile(newProfile)
+                setLoading(false)
+              }
             } else {
-              console.log('Profile created successfully:', newProfile)
-              setProfile(newProfile)
-              setLoading(false)
+              throw new Error('No user data available for profile creation')
             }
-          } else {
-            setLoading(false)
+          } catch (createError) {
+            console.error('Failed to create user profile:', createError)
+            throw createError
           }
         } else {
-          // For other errors, stop loading
-          setLoading(false)
+          // For other database errors, throw to be handled by caller
+          throw error
         }
       } else {
         console.log('Profile fetched successfully:', data)
@@ -128,8 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Error in fetchProfile:', error)
-      // Always stop loading on error to prevent infinite loading
-      setLoading(false)
+      throw error // Re-throw so caller can handle it
     }
   }
 
