@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,7 +14,7 @@ import { toast } from '@/hooks/use-toast'
 
 export const SalesEntryForm: React.FC = () => {
   const { profile } = useAuth()
-  const { data: plans, isLoading: plansLoading } = usePlans()
+  const { data: plans, isLoading: plansLoading, error: plansError } = usePlans()
   const createSalesEntry = useCreateSalesEntry()
 
   const [formData, setFormData] = React.useState({
@@ -26,6 +25,13 @@ export const SalesEntryForm: React.FC = () => {
     orderLink: '',
     date: new Date().toISOString().split('T')[0]
   })
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('Plans loading state:', plansLoading)
+    console.log('Plans error:', plansError)
+    console.log('Plans data:', plans)
+  }, [plans, plansLoading, plansError])
 
   const selectedPlan = plans?.find(p => p.id === formData.planId)
   const calculation = selectedPlan ? calculateMRR(
@@ -81,7 +87,38 @@ export const SalesEntryForm: React.FC = () => {
     return (
       <Card className="bg-white/5 backdrop-blur-xl border-white/10">
         <CardContent className="p-6">
-          <div className="animate-pulse">Loading plans...</div>
+          <div className="animate-pulse text-white">Loading hosting plans...</div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (plansError) {
+    return (
+      <Card className="bg-white/5 backdrop-blur-xl border-white/10">
+        <CardContent className="p-6">
+          <div className="text-red-400">
+            <p className="font-semibold">Error loading hosting plans:</p>
+            <p className="text-sm mt-1">{plansError.message}</p>
+            <p className="text-xs mt-2 text-gray-400">
+              Check the browser console for more details.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!plans || plans.length === 0) {
+    return (
+      <Card className="bg-white/5 backdrop-blur-xl border-white/10">
+        <CardContent className="p-6">
+          <div className="text-yellow-400">
+            <p className="font-semibold">No hosting plans found</p>
+            <p className="text-sm mt-1">
+              The hosting plans table appears to be empty. Please check if the sample data has been inserted.
+            </p>
+          </div>
         </CardContent>
       </Card>
     )
@@ -91,6 +128,7 @@ export const SalesEntryForm: React.FC = () => {
     <Card className="bg-white/5 backdrop-blur-xl border-white/10">
       <CardHeader>
         <CardTitle className="text-white">Record New Sale</CardTitle>
+        <p className="text-sm text-gray-400">Found {plans.length} hosting plans</p>
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">
