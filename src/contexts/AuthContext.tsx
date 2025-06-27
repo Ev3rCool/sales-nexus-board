@@ -31,19 +31,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let mounted = true
+
     // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         console.log('Initial session:', session?.user?.email)
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          await fetchProfile(session.user.id)
+        
+        if (mounted) {
+          setUser(session?.user ?? null)
+          if (session?.user) {
+            await fetchProfile(session.user.id)
+          }
+          setLoading(false)
         }
       } catch (error) {
         console.error('Error getting initial session:', error)
-      } finally {
-        setLoading(false)
+        if (mounted) {
+          setLoading(false)
+        }
       }
     }
 
@@ -52,15 +59,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email)
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        await fetchProfile(session.user.id)
-      } else {
-        setProfile(null)
+      
+      if (mounted) {
+        setUser(session?.user ?? null)
+        if (session?.user) {
+          await fetchProfile(session.user.id)
+        } else {
+          setProfile(null)
+        }
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const fetchProfile = async (userId: string) => {
