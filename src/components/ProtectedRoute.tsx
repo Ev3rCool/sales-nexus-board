@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
@@ -20,9 +19,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Add a timeout to prevent infinite loading
   useEffect(() => {
     const timeout = setTimeout(() => {
-      console.log('Auth timeout reached, stopping loading state')
+      console.log('ProtectedRoute timeout reached')
       setTimeoutReached(true)
-    }, 10000) // 10 second timeout
+    }, 8000) // 8 second timeout
 
     return () => clearTimeout(timeout)
   }, [])
@@ -37,9 +36,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
         <div className="text-white text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Loading...</p>
-          <p className="text-sm text-gray-400 mt-2">If this takes too long, you'll be redirected to login</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-lg">Loading...</p>
+          <p className="text-sm text-gray-400 mt-2">Initializing your dashboard</p>
         </div>
       </div>
     )
@@ -62,6 +61,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         <div className="text-white text-center">
           <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
           <p>You don't have permission to access this page.</p>
+          <p className="text-sm text-gray-400 mt-2">Your role: {profile.role}</p>
         </div>
       </div>
     )

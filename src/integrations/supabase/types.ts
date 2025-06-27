@@ -211,21 +211,21 @@ export type Database = {
           email: string
           id: string
           name: string | null
-          role: Database["public"]["Enums"]["app_user_role"]
+          role: Database["public"]["Enums"]["roles"]
           team_id: string | null
         }
         Insert: {
           email: string
           id?: string
           name?: string | null
-          role?: Database["public"]["Enums"]["app_user_role"]
+          role?: Database["public"]["Enums"]["roles"]
           team_id?: string | null
         }
         Update: {
           email?: string
           id?: string
           name?: string | null
-          role?: Database["public"]["Enums"]["app_user_role"]
+          role?: Database["public"]["Enums"]["roles"]
           team_id?: string | null
         }
         Relationships: [
@@ -246,7 +246,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      app_user_role: "agent" | "supervisor" | "manager"
+      roles: "agent" | "supervisor" | "manager"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -362,7 +362,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_user_role: ["agent", "supervisor", "manager"],
+      roles: ["agent", "supervisor", "manager"],
     },
   },
 } as const
