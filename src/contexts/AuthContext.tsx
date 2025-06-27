@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
@@ -43,8 +42,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(session?.user ?? null)
           if (session?.user) {
             await fetchProfile(session.user.id)
+          } else {
+            setLoading(false)
           }
-          setLoading(false)
         }
       } catch (error) {
         console.error('Error getting initial session:', error)
@@ -66,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await fetchProfile(session.user.id)
         } else {
           setProfile(null)
+          setLoading(false)
         }
       }
     })
@@ -78,6 +79,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = async (userId: string) => {
     try {
+      console.log('Fetching profile for user:', userId)
+      
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -88,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error fetching profile:', error)
         // If user doesn't exist in users table, create them
         if (error.code === 'PGRST116') {
+          console.log('User profile not found, creating new profile...')
           const { data: userData } = await supabase.auth.getUser()
           if (userData.user) {
             const { data: newProfile, error: insertError } = await supabase
@@ -103,16 +107,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (insertError) {
               console.error('Error creating profile:', insertError)
+              // Even if profile creation fails, don't keep loading forever
+              setLoading(false)
             } else {
+              console.log('Profile created successfully:', newProfile)
               setProfile(newProfile)
+              setLoading(false)
             }
+          } else {
+            setLoading(false)
           }
+        } else {
+          // For other errors, stop loading
+          setLoading(false)
         }
       } else {
+        console.log('Profile fetched successfully:', data)
         setProfile(data)
+        setLoading(false)
       }
     } catch (error) {
       console.error('Error in fetchProfile:', error)
+      // Always stop loading on error to prevent infinite loading
+      setLoading(false)
     }
   }
 
