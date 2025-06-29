@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
 
 export const SalesEntryForm: React.FC = () => {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const { data: plans, isLoading: plansLoading, error: plansError } = usePlans()
   const createSalesEntry = useCreateSalesEntry()
 
@@ -33,8 +33,9 @@ export const SalesEntryForm: React.FC = () => {
     console.log('Plans error:', plansError)
     console.log('Plans data:', plans)
     console.log('Form data:', formData)
-    console.log('Profile:', profile)
-  }, [plans, plansLoading, plansError, formData, profile])
+    console.log('User:', !!user, user?.id)
+    console.log('Profile:', !!profile, profile?.id)
+  }, [plans, plansLoading, plansError, formData, user, profile])
 
   const selectedPlan = plans?.find(p => p.id === formData.planId)
   const calculation = selectedPlan ? calculateMRR(
@@ -49,14 +50,15 @@ export const SalesEntryForm: React.FC = () => {
     
     console.log('Form submitted with data:', formData)
     console.log('Selected plan:', selectedPlan)
+    console.log('User:', user)
     console.log('Profile:', profile)
     console.log('Calculation:', calculation)
     
-    if (!profile) {
-      console.error('No profile found')
+    if (!user) {
+      console.error('No user found')
       toast({
         title: "Error",
-        description: "User profile not found. Please try logging in again.",
+        description: "User not authenticated. Please try logging in again.",
         variant: "destructive"
       })
       return
@@ -85,7 +87,7 @@ export const SalesEntryForm: React.FC = () => {
     try {
       console.log('Creating sales entry...')
       const result = await createSalesEntry.mutateAsync({
-        agent_id: profile.id,
+        agent_id: user.id, // Use user.id directly instead of profile.id
         plan_id: formData.planId,
         date: formData.date,
         billing_cycle: formData.billingCycle,
@@ -163,13 +165,17 @@ export const SalesEntryForm: React.FC = () => {
     )
   }
 
-  const isFormValid = formData.planId && formData.billingCycle && profile
+  // Allow form to work as long as user is authenticated, even without profile
+  const isFormValid = formData.planId && formData.billingCycle && user
 
   return (
     <Card className="bg-white/5 backdrop-blur-xl border-white/10">
       <CardHeader>
         <CardTitle className="text-white">Record New Sale</CardTitle>
         <p className="text-sm text-gray-400">Found {plans.length} hosting plans</p>
+        {user && !profile && (
+          <p className="text-xs text-yellow-400">Profile loading... Form is still functional.</p>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         <form onSubmit={handleSubmit} className="space-y-4">

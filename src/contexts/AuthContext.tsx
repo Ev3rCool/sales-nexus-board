@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
@@ -66,9 +67,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (session?.user) {
             try {
-              await fetchProfile(session.user.id)
+              await fetchOrCreateProfile(session.user)
             } catch (profileError) {
-              console.error('Profile fetch failed:', profileError)
+              console.error('Profile fetch/create failed:', profileError)
               // Continue without profile - user can still access the app
             }
           }
@@ -96,9 +97,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           try {
-            await fetchProfile(session.user.id)
+            await fetchOrCreateProfile(session.user)
           } catch (profileError) {
-            console.error('Profile fetch failed during auth change:', profileError)
+            console.error('Profile fetch/create failed during auth change:', profileError)
           }
         } else {
           setProfile(null)
@@ -117,54 +118,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [])
 
-  const fetchProfile = async (userId: string) => {
+  const fetchOrCreateProfile = async (user: User) => {
     try {
-      console.log('Fetching profile for user:', userId)
+      console.log('Fetching profile for user:', user.id)
       
+      // First try to fetch existing profile
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('id', userId)
-        .maybeSingle() // Use maybeSingle instead of single to avoid errors when no rows
+        .eq('id', user.id)
+        .maybeSingle()
 
       if (error) {
         console.error('Error fetching profile:', error)
-        
-        // If user doesn't exist in users table, try to create them
-        if (error.code === 'PGRST116' || !data) {
-          console.log('User profile not found, creating new profile...')
-          const { data: userData } = await supabase.auth.getUser()
-          
-          if (userData.user) {
-            const { data: newProfile, error: insertError } = await supabase
-              .from('users')
-              .insert({
-                id: userData.user.id,
-                email: userData.user.email!,
-                name: userData.user.user_metadata?.name || userData.user.email?.split('@')[0] || null,
-                role: 'agent'
-              })
-              .select()
-              .single()
+        throw error
+      }
 
-            if (insertError) {
-              console.error('Error creating profile:', insertError)
-              throw insertError
-            } else {
-              console.log('Profile created successfully:', newProfile)
-              setProfile(newProfile)
-            }
-          }
-        } else {
-          throw error
-        }
-      } else if (data) {
-        console.log('Profile fetched successfully:', data)
+      if (data) {
+        console.log('Profile found:', data)
         setProfile(data)
+      } else {
+        // Profile doesn't exist, create it
+        console.log('Profile not found, creating new profile...')
+        
+        const newProfile = {
+          id: user.id,
+          email: user.email!,
+          name: user.user_metadata?.name || user.email?.split('@')[0] || null,
+          role: 'agent' as const
+        }
+
+        const { data: createdProfile, error: insertError } = await supabase
+          .from('users')
+          .insert(newProfile)
+          .select()
+          .single()
+
+        if (insertError) {
+          console.error('Error creating profile:', insertError)
+          throw insertError
+        }
+
+        console.log('Profile created successfully:', createdProfile)
+        setProfile(createdProfile)
       }
     } catch (error) {
-      console.error('Error in fetchProfile:', error)
-      // Don't throw here - let the app continue without profile
+      console.error('Error in fetchOrCreateProfile:', error)
+      throw error
     }
   }
 
