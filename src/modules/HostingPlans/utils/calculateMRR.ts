@@ -25,16 +25,19 @@ export const calculateMRR = (
       break
     case 'q':
     case 'quarterly':
+      // For quarterly, the total contract value is regular price * 3, then we get MRR by dividing by 3
       monthlyPrice = discountedPrice / 3
       contractLength = 3
       break
     case 's-a':
     case 'semi-annual':
+      // For semi-annual, the total contract value is regular price * 6, then we get MRR by dividing by 6
       monthlyPrice = discountedPrice / 6
       contractLength = 6
       break
     case 'a':
     case 'annual':
+      // For annual, the total contract value is regular price * 12, then we get MRR by dividing by 12
       monthlyPrice = discountedPrice / 12
       contractLength = 12
       break
@@ -52,7 +55,8 @@ export const calculateMRR = (
   }
   
   const mrr = monthlyPrice * subscribersCount
-  const tcv = discountedPrice * subscribersCount
+  // TCV should be the total amount paid upfront (regular price * contract length * subscribers)
+  const tcv = (regularPrice * contractLength * (1 - discountPct / 100)) * subscribersCount
   
   return {
     mrr: Math.round(mrr * 100) / 100, // Round to 2 decimal places

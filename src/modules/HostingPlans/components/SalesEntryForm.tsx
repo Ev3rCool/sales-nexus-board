@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,7 +32,9 @@ export const SalesEntryForm: React.FC = () => {
     console.log('Plans loading state:', plansLoading)
     console.log('Plans error:', plansError)
     console.log('Plans data:', plans)
-  }, [plans, plansLoading, plansError])
+    console.log('Form data:', formData)
+    console.log('Profile:', profile)
+  }, [plans, plansLoading, plansError, formData, profile])
 
   const selectedPlan = plans?.find(p => p.id === formData.planId)
   const calculation = selectedPlan ? calculateMRR(
@@ -44,10 +47,44 @@ export const SalesEntryForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!profile || !selectedPlan) return
+    console.log('Form submitted with data:', formData)
+    console.log('Selected plan:', selectedPlan)
+    console.log('Profile:', profile)
+    console.log('Calculation:', calculation)
+    
+    if (!profile) {
+      console.error('No profile found')
+      toast({
+        title: "Error",
+        description: "User profile not found. Please try logging in again.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!selectedPlan) {
+      console.error('No plan selected')
+      toast({
+        title: "Error",
+        description: "Please select a hosting plan",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!formData.billingCycle) {
+      console.error('No billing cycle selected')
+      toast({
+        title: "Error",
+        description: "Please select a billing cycle",
+        variant: "destructive"
+      })
+      return
+    }
 
     try {
-      await createSalesEntry.mutateAsync({
+      console.log('Creating sales entry...')
+      const result = await createSalesEntry.mutateAsync({
         agent_id: profile.id,
         plan_id: formData.planId,
         date: formData.date,
@@ -58,6 +95,8 @@ export const SalesEntryForm: React.FC = () => {
         mrr: calculation.mrr,
         tcv: calculation.tcv
       })
+
+      console.log('Sales entry created successfully:', result)
 
       toast({
         title: "Sales Entry Created",
@@ -77,7 +116,7 @@ export const SalesEntryForm: React.FC = () => {
       console.error('Error creating sales entry:', error)
       toast({
         title: "Error",
-        description: "Failed to create sales entry",
+        description: "Failed to create sales entry. Check the console for details.",
         variant: "destructive"
       })
     }
@@ -123,6 +162,8 @@ export const SalesEntryForm: React.FC = () => {
       </Card>
     )
   }
+
+  const isFormValid = formData.planId && formData.billingCycle && profile
 
   return (
     <Card className="bg-white/5 backdrop-blur-xl border-white/10">
@@ -220,13 +261,16 @@ export const SalesEntryForm: React.FC = () => {
                   <p className="text-blue-400 font-bold text-lg">${calculation.tcv.toFixed(2)}</p>
                 </div>
               </div>
+              <div className="mt-2 text-xs text-gray-400">
+                <p>Base price: ${selectedPlan.regular_price} • Discount: {formData.discountPct}% • Cycle: {formData.billingCycle}</p>
+              </div>
             </div>
           )}
 
           <Button 
             type="submit" 
             className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-            disabled={!formData.planId || !formData.billingCycle || createSalesEntry.isPending}
+            disabled={!isFormValid || createSalesEntry.isPending}
           >
             {createSalesEntry.isPending ? 'Creating...' : 'Record Sale'}
           </Button>
