@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { memo, useMemo } from 'react'
 import { SalesEntryForm } from '@/modules/HostingPlans/components/SalesEntryForm'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSalesEntries } from '@/modules/HostingPlans/hooks/useSalesEntries'
@@ -6,19 +6,25 @@ import { usePlans } from '@/modules/HostingPlans/hooks/usePlans'
 import { format } from 'date-fns'
 import { useAuth } from '@/contexts/AuthContext'
 
-export const HostingPlansPage: React.FC = () => {
+const HostingPlansPageComponent: React.FC = () => {
   const { user, profile } = useAuth()
   const { data: salesEntries, isLoading } = useSalesEntries()
   const { data: plans, isLoading: plansLoading, error: plansError } = usePlans()
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('HostingPlansPage - User:', !!user)
-    console.log('HostingPlansPage - Profile:', profile)
-    console.log('HostingPlansPage - Plans loading:', plansLoading)
-    console.log('HostingPlansPage - Plans error:', plansError)
-    console.log('HostingPlansPage - Plans data:', plans)
-  }, [user, profile, plans, plansLoading, plansError])
+  // Memoized debug info to prevent unnecessary re-renders
+  const debugInfo = useMemo(() => ({
+    userAuthenticated: user ? 'Yes' : 'No',
+    profileLoaded: profile ? 'Yes' : 'No',
+    plansLoading: plansLoading ? 'Yes' : 'No',
+    plansCount: plans?.length || 0,
+    plansError: plansError?.message
+  }), [user, profile, plansLoading, plans?.length, plansError?.message])
+
+  // Memoized recent sales entries
+  const recentSalesEntries = useMemo(() => 
+    salesEntries?.slice(0, 10) || [], 
+    [salesEntries]
+  )
 
   return (
     <div className="space-y-6">
@@ -28,11 +34,11 @@ export const HostingPlansPage: React.FC = () => {
         
         {/* Debug info */}
         <div className="mt-2 text-xs text-gray-500">
-          <p>User authenticated: {user ? 'Yes' : 'No'}</p>
-          <p>Profile loaded: {profile ? 'Yes' : 'No'}</p>
-          <p>Plans loading: {plansLoading ? 'Yes' : 'No'}</p>
-          <p>Plans count: {plans?.length || 0}</p>
-          {plansError && <p className="text-red-400">Error: {plansError.message}</p>}
+          <p>User authenticated: {debugInfo.userAuthenticated}</p>
+          <p>Profile loaded: {debugInfo.profileLoaded}</p>
+          <p>Plans loading: {debugInfo.plansLoading}</p>
+          <p>Plans count: {debugInfo.plansCount}</p>
+          {debugInfo.plansError && <p className="text-red-400">Error: {debugInfo.plansError}</p>}
         </div>
       </div>
 
@@ -48,7 +54,7 @@ export const HostingPlansPage: React.FC = () => {
               <div className="animate-pulse text-gray-400">Loading recent sales...</div>
             ) : salesEntries && salesEntries.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {salesEntries.slice(0, 10).map((entry) => (
+                {recentSalesEntries.map((entry) => (
                   <div key={entry.id} className="bg-white/5 rounded-lg p-3 border border-white/10">
                     <div className="flex justify-between items-start">
                       <div>
@@ -82,3 +88,6 @@ export const HostingPlansPage: React.FC = () => {
     </div>
   )
 }
+
+// Memoized export to prevent unnecessary re-renders
+export const HostingPlansPage = memo(HostingPlansPageComponent)

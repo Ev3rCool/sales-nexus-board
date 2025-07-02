@@ -41,19 +41,19 @@ export type Database = {
       }
       plan_discounts: {
         Row: {
-          billing_cycle: string
+          billing_cycle: Database["public"]["Enums"]["billing_cycle"]
           discount_pct: number
           id: string
           plan_id: string
         }
         Insert: {
-          billing_cycle: string
+          billing_cycle: Database["public"]["Enums"]["billing_cycle"]
           discount_pct: number
           id?: string
           plan_id: string
         }
         Update: {
-          billing_cycle?: string
+          billing_cycle?: Database["public"]["Enums"]["billing_cycle"]
           discount_pct?: number
           id?: string
           plan_id?: string
@@ -129,7 +129,7 @@ export type Database = {
       sales_entries: {
         Row: {
           agent_id: string
-          billing_cycle: string
+          billing_cycle: Database["public"]["Enums"]["billing_cycle"]
           date: string
           discount_pct: number
           id: string
@@ -141,7 +141,7 @@ export type Database = {
         }
         Insert: {
           agent_id: string
-          billing_cycle: string
+          billing_cycle: Database["public"]["Enums"]["billing_cycle"]
           date?: string
           discount_pct: number
           id?: string
@@ -153,7 +153,7 @@ export type Database = {
         }
         Update: {
           agent_id?: string
-          billing_cycle?: string
+          billing_cycle?: Database["public"]["Enums"]["billing_cycle"]
           date?: string
           discount_pct?: number
           id?: string
@@ -247,6 +247,7 @@ export type Database = {
     }
     Enums: {
       app_user_role: "agent" | "supervisor" | "manager"
+      billing_cycle: "monthly" | "quarterly" | "semi-annual" | "annual"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -363,6 +364,7 @@ export const Constants = {
   public: {
     Enums: {
       app_user_role: ["agent", "supervisor", "manager"],
+      billing_cycle: ["monthly", "quarterly", "semi-annual", "annual"],
     },
   },
 } as const

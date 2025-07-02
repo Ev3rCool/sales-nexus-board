@@ -31,7 +31,10 @@ export const useSalesEntries = (agentId?: string) => {
       if (error) throw error
       return data || []
     },
-    enabled: !!(agentId || profile?.id)
+    enabled: !!(agentId || profile?.id),
+    staleTime: 1000 * 60 * 2, // 2 minutes - sales data should be relatively fresh
+    gcTime: 1000 * 60 * 15, // 15 minutes
+    refetchOnWindowFocus: true // Refetch when user returns to window
   })
 }
 

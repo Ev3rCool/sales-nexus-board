@@ -13,45 +13,31 @@ export const usePlans = () => {
   return useQuery({
     queryKey: ['hosting-plans'],
     queryFn: async (): Promise<HostingPlanWithDiscounts[]> => {
-      console.log('Fetching hosting plans...')
-      
-      try {
-        // First, let's check if we can access the table at all
-        const { data: testData, error: testError } = await supabase
-          .from('hosting_plans')
-          .select('count')
-          .limit(1)
+      const { data, error } = await supabase
+        .from('hosting_plans')
+        .select(`
+          *,
+          plan_discounts (*)
+        `)
+        .order('name')
 
-        if (testError) {
-          console.error('Error accessing hosting_plans table:', testError)
-          throw testError
-        }
-
-        console.log('Table access test successful')
-
-        // Now fetch the actual data
-        const { data, error } = await supabase
-          .from('hosting_plans')
-          .select(`
-            *,
-            plan_discounts (*)
-          `)
-          .order('name')
-
-        if (error) {
-          console.error('Error fetching hosting plans:', error)
-          throw error
-        }
-
-        console.log('Hosting plans fetched successfully:', data)
-        return data || []
-      } catch (error) {
-        console.error('Error in usePlans:', error)
+      if (error) {
+        console.error('Error fetching hosting plans:', error)
         throw error
       }
+
+      return data || []
     },
-    retry: 3,
-    retryDelay: 1000
+    staleTime: 1000 * 60 * 10, // 10 minutes - hosting plans don't change often
+    gcTime: 1000 * 60 * 60, // 1 hour
+    retry: (failureCount, error) => {
+      // Don't retry on auth errors
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST301') {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    refetchOnWindowFocus: false
   })
 }
 

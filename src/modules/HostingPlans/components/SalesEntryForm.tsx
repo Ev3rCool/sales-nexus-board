@@ -1,5 +1,5 @@
 
-import React from 'react'
+import React, { memo, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,8 +12,9 @@ import { useCreateSalesEntry } from '../hooks/useSalesEntries'
 import { calculateMRR } from '../utils/calculateMRR'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/hooks/use-toast'
+import type { Database } from '@/integrations/supabase/types'
 
-export const SalesEntryForm: React.FC = () => {
+const SalesEntryFormComponent: React.FC = () => {
   const { user, profile } = useAuth()
   const { data: plans, isLoading: plansLoading, error: plansError } = usePlans()
   const createSalesEntry = useCreateSalesEntry()
@@ -27,25 +28,55 @@ export const SalesEntryForm: React.FC = () => {
     date: new Date().toISOString().split('T')[0]
   })
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('Plans loading state:', plansLoading)
-    console.log('Plans error:', plansError)
-    console.log('Plans data:', plans)
-    console.log('Form data:', formData)
-    console.log('User:', !!user, user?.id)
-    console.log('Profile:', !!profile, profile?.id)
-  }, [plans, plansLoading, plansError, formData, user, profile])
+  // Memoized selected plan to prevent unnecessary recalculations
+  const selectedPlan = useMemo(() => 
+    plans?.find(p => p.id === formData.planId), 
+    [plans, formData.planId]
+  )
 
-  const selectedPlan = plans?.find(p => p.id === formData.planId)
-  const calculation = selectedPlan ? calculateMRR(
-    selectedPlan.regular_price, 
-    formData.discountPct, 
-    formData.billingCycle,
-    formData.subscribersCount
-  ) : { mrr: 0, tcv: 0 }
+  // Memoized calculation to prevent unnecessary recalculations
+  const calculation = useMemo(() => 
+    selectedPlan ? calculateMRR(
+      selectedPlan.regular_price, 
+      formData.discountPct, 
+      formData.billingCycle,
+      formData.subscribersCount
+    ) : { mrr: 0, tcv: 0 },
+    [selectedPlan, formData.discountPct, formData.billingCycle, formData.subscribersCount]
+  )
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Memoized form validity check
+  const isFormValid = useMemo(() => 
+    formData.planId && formData.billingCycle && user,
+    [formData.planId, formData.billingCycle, user]
+  )
+
+  // Optimized form field change handlers using useCallback
+  const handlePlanChange = useCallback((value: string) => {
+    setFormData(prev => ({ ...prev, planId: value, billingCycle: '', discountPct: 0 }))
+  }, [])
+
+  const handleBillingCycleChange = useCallback((value: string) => {
+    setFormData(prev => ({ ...prev, billingCycle: value }))
+  }, [])
+
+  const handleDiscountChange = useCallback((value: number) => {
+    setFormData(prev => ({ ...prev, discountPct: value }))
+  }, [])
+
+  const handleSubscribersChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, subscribersCount: parseInt(e.target.value) || 1 }))
+  }, [])
+
+  const handleDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, date: e.target.value }))
+  }, [])
+
+  const handleOrderLinkChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, orderLink: e.target.value }))
+  }, [])
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     
     console.log('Form submitted with data:', formData)
@@ -90,7 +121,7 @@ export const SalesEntryForm: React.FC = () => {
         agent_id: user.id, // Use user.id directly instead of profile.id
         plan_id: formData.planId,
         date: formData.date,
-        billing_cycle: formData.billingCycle,
+        billing_cycle: formData.billingCycle as Database['public']['Enums']['billing_cycle'],
         discount_pct: formData.discountPct,
         subscribers_count: formData.subscribersCount,
         order_link: formData.orderLink || null,
@@ -122,7 +153,7 @@ export const SalesEntryForm: React.FC = () => {
         variant: "destructive"
       })
     }
-  }
+  }, [formData, selectedPlan, calculation, user, createSalesEntry])
 
   if (plansLoading) {
     return (
@@ -165,8 +196,6 @@ export const SalesEntryForm: React.FC = () => {
     )
   }
 
-  // Allow form to work as long as user is authenticated, even without profile
-  const isFormValid = formData.planId && formData.billingCycle && user
 
   return (
     <Card className="bg-white/5 backdrop-blur-xl border-white/10">
@@ -181,7 +210,7 @@ export const SalesEntryForm: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label className="text-white mb-2 block">Hosting Plan</Label>
-            <Select value={formData.planId} onValueChange={(value) => setFormData(prev => ({ ...prev, planId: value, billingCycle: '', discountPct: 0 }))}>
+            <Select value={formData.planId} onValueChange={handlePlanChange}>
               <SelectTrigger className="bg-white/5 border-white/10 text-white">
                 <SelectValue placeholder="Select a hosting plan" />
               </SelectTrigger>
@@ -206,7 +235,7 @@ export const SalesEntryForm: React.FC = () => {
                 <BillingCycleSelector
                   planType={selectedPlan.plan_type}
                   value={formData.billingCycle}
-                  onChange={(value) => setFormData(prev => ({ ...prev, billingCycle: value }))}
+                  onChange={handleBillingCycleChange}
                 />
               </div>
 
@@ -215,7 +244,7 @@ export const SalesEntryForm: React.FC = () => {
                 <DiscountSelector
                   planType={selectedPlan.plan_type}
                   value={formData.discountPct}
-                  onChange={(value) => setFormData(prev => ({ ...prev, discountPct: value }))}
+                  onChange={handleDiscountChange}
                 />
               </div>
             </>
@@ -228,7 +257,7 @@ export const SalesEntryForm: React.FC = () => {
                 type="number"
                 min="1"
                 value={formData.subscribersCount}
-                onChange={(e) => setFormData(prev => ({ ...prev, subscribersCount: parseInt(e.target.value) || 1 }))}
+                onChange={handleSubscribersChange}
                 className="bg-white/5 border-white/10 text-white"
               />
             </div>
@@ -237,7 +266,7 @@ export const SalesEntryForm: React.FC = () => {
               <Input
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                onChange={handleDateChange}
                 className="bg-white/5 border-white/10 text-white"
               />
             </div>
@@ -248,7 +277,7 @@ export const SalesEntryForm: React.FC = () => {
             <Input
               type="url"
               value={formData.orderLink}
-              onChange={(e) => setFormData(prev => ({ ...prev, orderLink: e.target.value }))}
+              onChange={handleOrderLinkChange}
               className="bg-white/5 border-white/10 text-white"
               placeholder="https://..."
             />
@@ -285,3 +314,6 @@ export const SalesEntryForm: React.FC = () => {
     </Card>
   )
 }
+
+// Memoized export to prevent unnecessary re-renders
+export const SalesEntryForm = memo(SalesEntryFormComponent)
