@@ -1,4 +1,3 @@
-
 import React, { memo, useCallback, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,6 +26,17 @@ const SalesEntryFormComponent: React.FC = () => {
     orderLink: '',
     date: new Date().toISOString().split('T')[0]
   })
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔍 SalesEntryForm state:', {
+      userAuthenticated: !!user,
+      profileLoaded: !!profile,
+      plansLoading,
+      plansCount: plans?.length || 0,
+      plansError: plansError?.message
+    })
+  }, [user, profile, plansLoading, plans?.length, plansError])
 
   // Memoized selected plan to prevent unnecessary recalculations
   const selectedPlan = useMemo(() => 
@@ -79,14 +89,13 @@ const SalesEntryFormComponent: React.FC = () => {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     
-    console.log('Form submitted with data:', formData)
-    console.log('Selected plan:', selectedPlan)
-    console.log('User:', user)
-    console.log('Profile:', profile)
-    console.log('Calculation:', calculation)
+    console.log('📝 Form submitted with data:', formData)
+    console.log('📋 Selected plan:', selectedPlan)
+    console.log('👤 User:', user?.id)
+    console.log('📊 Calculation:', calculation)
     
     if (!user) {
-      console.error('No user found')
+      console.error('❌ No user found')
       toast({
         title: "Error",
         description: "User not authenticated. Please try logging in again.",
@@ -96,7 +105,7 @@ const SalesEntryFormComponent: React.FC = () => {
     }
 
     if (!selectedPlan) {
-      console.error('No plan selected')
+      console.error('❌ No plan selected')
       toast({
         title: "Error",
         description: "Please select a hosting plan",
@@ -106,7 +115,7 @@ const SalesEntryFormComponent: React.FC = () => {
     }
 
     if (!formData.billingCycle) {
-      console.error('No billing cycle selected')
+      console.error('❌ No billing cycle selected')
       toast({
         title: "Error",
         description: "Please select a billing cycle",
@@ -116,9 +125,9 @@ const SalesEntryFormComponent: React.FC = () => {
     }
 
     try {
-      console.log('Creating sales entry...')
+      console.log('🚀 Creating sales entry...')
       const result = await createSalesEntry.mutateAsync({
-        agent_id: user.id, // Use user.id directly instead of profile.id
+        agent_id: user.id,
         plan_id: formData.planId,
         date: formData.date,
         billing_cycle: formData.billingCycle as Database['public']['Enums']['billing_cycle'],
@@ -129,7 +138,7 @@ const SalesEntryFormComponent: React.FC = () => {
         tcv: calculation.tcv
       })
 
-      console.log('Sales entry created successfully:', result)
+      console.log('✅ Sales entry created successfully:', result)
 
       toast({
         title: "Sales Entry Created",
@@ -146,7 +155,7 @@ const SalesEntryFormComponent: React.FC = () => {
         date: new Date().toISOString().split('T')[0]
       })
     } catch (error) {
-      console.error('Error creating sales entry:', error)
+      console.error('❌ Error creating sales entry:', error)
       toast({
         title: "Error",
         description: "Failed to create sales entry. Check the console for details.",
@@ -155,22 +164,27 @@ const SalesEntryFormComponent: React.FC = () => {
     }
   }, [formData, selectedPlan, calculation, user, createSalesEntry])
 
+  // Loading state
   if (plansLoading) {
     return (
       <Card className="bg-white/5 backdrop-blur-xl border-white/10">
         <CardContent className="p-6">
-          <div className="animate-pulse text-white">Loading hosting plans...</div>
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <span className="text-white">Loading hosting plans...</span>
+          </div>
         </CardContent>
       </Card>
     )
   }
 
+  // Error state
   if (plansError) {
     return (
       <Card className="bg-white/5 backdrop-blur-xl border-white/10">
         <CardContent className="p-6">
           <div className="text-red-400">
-            <p className="font-semibold">Error loading hosting plans:</p>
+            <p className="font-semibold">❌ Error loading hosting plans</p>
             <p className="text-sm mt-1">{plansError.message}</p>
             <p className="text-xs mt-2 text-gray-400">
               Check the browser console for more details.
@@ -181,12 +195,13 @@ const SalesEntryFormComponent: React.FC = () => {
     )
   }
 
+  // No plans state
   if (!plans || plans.length === 0) {
     return (
       <Card className="bg-white/5 backdrop-blur-xl border-white/10">
         <CardContent className="p-6">
           <div className="text-yellow-400">
-            <p className="font-semibold">No hosting plans found</p>
+            <p className="font-semibold">⚠️ No hosting plans found</p>
             <p className="text-sm mt-1">
               The hosting plans table appears to be empty. Please check if the sample data has been inserted.
             </p>
@@ -196,14 +211,13 @@ const SalesEntryFormComponent: React.FC = () => {
     )
   }
 
-
   return (
     <Card className="bg-white/5 backdrop-blur-xl border-white/10">
       <CardHeader>
         <CardTitle className="text-white">Record New Sale</CardTitle>
-        <p className="text-sm text-gray-400">Found {plans.length} hosting plans</p>
+        <p className="text-sm text-gray-400">✅ Found {plans.length} hosting plans</p>
         {user && !profile && (
-          <p className="text-xs text-yellow-400">Profile loading... Form is still functional.</p>
+          <p className="text-xs text-yellow-400">⚠️ Profile loading... Form is still functional.</p>
         )}
       </CardHeader>
       <CardContent className="space-y-4">

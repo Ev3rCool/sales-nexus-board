@@ -13,31 +13,60 @@ export const usePlans = () => {
   return useQuery({
     queryKey: ['hosting-plans'],
     queryFn: async (): Promise<HostingPlanWithDiscounts[]> => {
-      const { data, error } = await supabase
-        .from('hosting_plans')
-        .select(`
-          *,
-          plan_discounts (*)
-        `)
-        .order('name')
+      console.log('🔍 Fetching hosting plans...')
+      
+      try {
+        // First, check if we can access the table at all
+        const { data: testData, error: testError } = await supabase
+          .from('hosting_plans')
+          .select('count')
+          .limit(1)
 
-      if (error) {
-        console.error('Error fetching hosting plans:', error)
+        if (testError) {
+          console.error('❌ Test query failed:', testError)
+          throw new Error(`Database access error: ${testError.message}`)
+        }
+
+        console.log('✅ Database access confirmed')
+
+        // Now fetch the actual data
+        const { data, error } = await supabase
+          .from('hosting_plans')
+          .select(`
+            *,
+            plan_discounts (*)
+          `)
+          .order('name')
+
+        if (error) {
+          console.error('❌ Error fetching hosting plans:', error)
+          throw new Error(`Failed to fetch hosting plans: ${error.message}`)
+        }
+
+        console.log('✅ Hosting plans fetched successfully:', data?.length || 0, 'plans')
+        return data || []
+      } catch (error) {
+        console.error('❌ Unexpected error in usePlans:', error)
         throw error
       }
-
-      return data || []
     },
     staleTime: 1000 * 60 * 10, // 10 minutes - hosting plans don't change often
     gcTime: 1000 * 60 * 60, // 1 hour
     retry: (failureCount, error) => {
-      // Don't retry on auth errors
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST301') {
-        return false;
+      console.log(`🔄 Retry attempt ${failureCount} for hosting plans`)
+      // Don't retry on auth errors or RLS errors
+      if (error && typeof error === 'object' && 'message' in error) {
+        const errorMessage = error.message.toLowerCase()
+        if (errorMessage.includes('permission') || errorMessage.includes('rls') || errorMessage.includes('policy')) {
+          console.log('🚫 Not retrying due to permission error')
+          return false
+        }
       }
-      return failureCount < 2;
+      return failureCount < 2
     },
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    refetchOnReconnect: true
   })
 }
 
