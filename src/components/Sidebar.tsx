@@ -7,10 +7,12 @@ import {
   Settings, 
   LogOut,
   Database,
-  PieChart
+  PieChart,
+  UserRound
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
+import { UserAvatar } from '@/components/UserAvatar'
 
 export const Sidebar: React.FC = () => {
   const { profile, signOut } = useAuth()
@@ -39,6 +41,12 @@ export const Sidebar: React.FC = () => {
       roles: ['agent', 'supervisor', 'manager']
     },
     {
+      path: '/profile',
+      icon: UserRound,
+      label: 'My Profile',
+      roles: ['agent', 'supervisor', 'manager']
+    },
+    {
       path: '/user-management',
       icon: Users,
       label: 'User Management',
@@ -59,10 +67,21 @@ export const Sidebar: React.FC = () => {
   return (
     <div className="w-64 bg-black/20 backdrop-blur-xl border-r border-white/10 flex flex-col">
       <div className="p-6 border-b border-white/10">
+        <div className="flex items-center gap-3 mb-3">
+          <UserAvatar size="md" />
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-semibold text-white truncate">
+              {profile?.first_name && profile?.last_name 
+                ? `${profile.first_name} ${profile.last_name}`
+                : profile?.name || profile?.email
+              }
+            </h2>
+            <p className="text-xs text-gray-400 truncate">
+              {profile?.email}
+            </p>
+          </div>
+        </div>
         <h1 className="text-xl font-bold text-white">MRR Dashboard</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          {profile?.name || profile?.email}
-        </p>
         <span className="inline-block px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded mt-2 capitalize">
           {profile?.role}
         </span>

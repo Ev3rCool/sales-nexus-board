@@ -208,22 +208,34 @@ export type Database = {
       }
       users: {
         Row: {
+          avatar_url: string | null
+          country: string | null
           email: string
+          first_name: string | null
           id: string
+          last_name: string | null
           name: string | null
           role: Database["public"]["Enums"]["app_user_role"]
           team_id: string | null
         }
         Insert: {
+          avatar_url?: string | null
+          country?: string | null
           email: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           name?: string | null
           role?: Database["public"]["Enums"]["app_user_role"]
           team_id?: string | null
         }
         Update: {
+          avatar_url?: string | null
+          country?: string | null
           email?: string
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           name?: string | null
           role?: Database["public"]["Enums"]["app_user_role"]
           team_id?: string | null
@@ -243,7 +255,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_avatar_url: {
+        Args: { user_id: string }
+        Returns: string
+      }
     }
     Enums: {
       app_user_role: "agent" | "supervisor" | "manager"

@@ -13,6 +13,7 @@ import { lazy, Suspense } from "react";
 const LoginPage = lazy(() => import("@/pages/LoginPage").then(module => ({ default: module.LoginPage })));
 const OverviewPage = lazy(() => import("@/pages/OverviewPage").then(module => ({ default: module.OverviewPage })));
 const HostingPlansPage = lazy(() => import("@/pages/HostingPlansPage").then(module => ({ default: module.HostingPlansPage })));
+const ProfilePage = lazy(() => import("@/pages/ProfilePage").then(module => ({ default: module.ProfilePage })));
 
 // Optimized React Query configuration
 const queryClient = new QueryClient({
@@ -61,6 +62,13 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <HostingPlansPage />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ProfilePage />
                   </Layout>
                 </ProtectedRoute>
               } />
