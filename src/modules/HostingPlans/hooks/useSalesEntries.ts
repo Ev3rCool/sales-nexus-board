@@ -5,11 +5,11 @@ import { useAuth } from '@/contexts/AuthContext'
 
 type SalesEntry = Database['public']['Tables']['sales_entries']['Row']
 
-export const useSalesEntries = (agentId?: string) => {
+export const useSalesEntries = (agentId?: string, dateRange?: { from: Date; to: Date }) => {
   const { user, profile } = useAuth()
   
   return useQuery({
-    queryKey: ['sales-entries', agentId || user?.id],
+    queryKey: ['sales-entries', agentId || user?.id, dateRange],
     queryFn: async (): Promise<SalesEntry[]> => {
       console.log('🔍 Fetching sales entries...')
       
@@ -26,6 +26,13 @@ export const useSalesEntries = (agentId?: string) => {
         const targetAgentId = agentId || user?.id
         if (targetAgentId) {
           query = query.eq('agent_id', targetAgentId)
+        }
+
+        // Add date range filtering
+        if (dateRange) {
+          query = query
+            .gte('date', dateRange.from.toISOString())
+            .lte('date', dateRange.to.toISOString())
         }
 
         const { data, error } = await query

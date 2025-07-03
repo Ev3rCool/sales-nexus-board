@@ -3,11 +3,13 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSalesEntries, useTeamStats } from '@/modules/HostingPlans/hooks/useSalesEntries'
 import { useAuth } from '@/contexts/AuthContext'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, ComposedChart } from 'recharts'
+import { DateRangeSelector, type DateRange } from '@/components/DateRangeSelector'
 
 export const OverviewPage: React.FC = () => {
   const { profile } = useAuth()
-  const { data: salesEntries } = useSalesEntries()
+  const [dateRange, setDateRange] = React.useState<DateRange | null>(null)
+  const { data: salesEntries } = useSalesEntries(undefined, dateRange || undefined)
   const { data: teamStats } = useTeamStats()
 
   // Calculate personal stats
@@ -33,7 +35,7 @@ export const OverviewPage: React.FC = () => {
     return Object.values(monthlyData).slice(-6) // Last 6 months
   }, [salesEntries])
 
-  // Team comparison data
+  // Team comparison data with more detailed insights
   const comparisonData = React.useMemo(() => {
     if (!teamStats || !profile) return []
 
@@ -42,19 +44,23 @@ export const OverviewPage: React.FC = () => {
 
     return [
       {
-        name: 'My MRR',
-        value: myStats.totalMRR,
-        fill: '#3b82f6'
+        category: 'MRR Performance',
+        myValue: myStats.totalMRR,
+        teamAvg: teamStats.teamAvgMRR,
+        myLabel: 'My MRR',
+        teamLabel: 'Team Avg'
       },
       {
-        name: 'Team Avg MRR',
-        value: teamStats.teamAvgMRR,
-        fill: '#8b5cf6'
+        category: 'TCV Performance', 
+        myValue: myStats.totalTCV,
+        teamAvg: teamStats.teamAvgTCV,
+        myLabel: 'My TCV',
+        teamLabel: 'Team Avg'
       }
     ]
   }, [teamStats, profile])
 
-  // Leaderboard data
+  // Enhanced leaderboard data with performance metrics
   const leaderboardData = React.useMemo(() => {
     if (!teamStats) return []
 
@@ -63,9 +69,12 @@ export const OverviewPage: React.FC = () => {
       .map((agent, index) => ({
         ...agent,
         rank: index + 1,
-        mrrShare: teamStats.teamTotalMRR > 0 ? (agent.totalMRR / teamStats.teamTotalMRR) * 100 : 0
+        mrrShare: teamStats.teamTotalMRR > 0 ? (agent.totalMRR / teamStats.teamTotalMRR) * 100 : 0,
+        tcvShare: teamStats.teamTotalTCV > 0 ? (agent.totalTCV / teamStats.teamTotalTCV) * 100 : 0,
+        avgDealSize: agent.salesCount > 0 ? agent.totalTCV / agent.salesCount : 0,
+        isCurrentUser: agent.id === profile?.id
       }))
-  }, [teamStats])
+  }, [teamStats, profile])
 
   const COLORS = ['#3b82f6', '#8b5cf6', '#06d6a0', '#f72585', '#f77f00']
 
@@ -73,9 +82,13 @@ export const OverviewPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Overview</h1>
-          <p className="text-gray-400 mt-1">Your performance dashboard</p>
+          <h1 className="text-3xl font-bold text-white">Performance Overview</h1>
+          <p className="text-gray-400 mt-1">Track your sales performance and team standings</p>
         </div>
+        <DateRangeSelector 
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
       </div>
 
       {/* Key Metrics */}
@@ -144,17 +157,17 @@ export const OverviewPage: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Team Comparison */}
+        {/* Enhanced Team Comparison */}
         {teamStats && (
           <Card className="bg-white/5 backdrop-blur-xl border-white/10">
             <CardHeader>
-              <CardTitle className="text-white">vs Team Average</CardTitle>
+              <CardTitle className="text-white">Performance vs Team Average</CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={comparisonData}>
+                <ComposedChart data={comparisonData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                  <XAxis dataKey="name" stroke="#9ca3af" />
+                  <XAxis dataKey="category" stroke="#9ca3af" fontSize={12} />
                   <YAxis stroke="#9ca3af" />
                   <Tooltip 
                     contentStyle={{ 
@@ -162,23 +175,28 @@ export const OverviewPage: React.FC = () => {
                       border: '1px solid #374151',
                       borderRadius: '8px',
                       color: '#fff'
-                    }} 
+                    }}
+                    formatter={(value: number, name: string) => [
+                      `$${value.toFixed(2)}`, 
+                      name === 'myValue' ? 'Your Performance' : 'Team Average'
+                    ]}
                   />
-                  <Bar dataKey="value" fill="#3b82f6" />
-                </BarChart>
+                  <Bar dataKey="myValue" fill="#3b82f6" name="myValue" />
+                  <Bar dataKey="teamAvg" fill="#8b5cf6" name="teamAvg" />
+                </ComposedChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         )}
       </div>
 
-      {/* Team Leaderboard */}
+      {/* Enhanced Interactive Leaderboard */}
       {leaderboardData.length > 0 && (
         <Card className="bg-white/5 backdrop-blur-xl border-white/10">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
               🏆 Team Leaderboard
-              <span className="text-sm text-gray-400 font-normal">Friendly Competition</span>
+              <span className="text-sm text-gray-400 font-normal">Friendly Competition • Hover for details</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -187,32 +205,66 @@ export const OverviewPage: React.FC = () => {
                 {leaderboardData.map((agent, index) => (
                   <div 
                     key={agent.id}
-                    className={`flex items-center justify-between p-3 rounded-lg transition-all hover:bg-white/5 ${
-                      agent.id === profile?.id ? 'bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20' : 'bg-white/5'
+                    className={`group relative flex items-center justify-between p-4 rounded-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer ${
+                      agent.isCurrentUser 
+                        ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 shadow-lg' 
+                        : 'bg-white/5 hover:bg-white/10'
                     }`}
+                    title={`${agent.name || agent.email} - Detailed Performance`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                        index === 0 ? 'bg-yellow-500 text-black' :
-                        index === 1 ? 'bg-gray-400 text-black' :
-                        index === 2 ? 'bg-amber-600 text-white' :
-                        'bg-gray-600 text-white'
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shadow-md ${
+                        index === 0 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-black' :
+                        index === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-500 text-black' :
+                        index === 2 ? 'bg-gradient-to-r from-amber-600 to-amber-800 text-white' :
+                        'bg-gradient-to-r from-gray-600 to-gray-700 text-white'
                       }`}>
                         {agent.rank}
                       </div>
                       <div>
-                        <p className="text-white font-medium">
+                        <p className="text-white font-medium flex items-center gap-2">
                           {agent.name || agent.email}
-                          {agent.id === profile?.id && (
-                            <span className="ml-2 text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">You</span>
+                          {agent.isCurrentUser && (
+                            <span className="text-xs bg-blue-500/30 text-blue-300 px-2 py-1 rounded-full border border-blue-500/40">
+                              You
+                            </span>
                           )}
                         </p>
-                        <p className="text-xs text-gray-400">{agent.salesCount} sales</p>
+                        <p className="text-xs text-gray-400">{agent.salesCount} sales • ${agent.avgDealSize.toFixed(0)} avg deal</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-green-400 font-bold">${agent.totalMRR.toFixed(2)}</p>
-                      <p className="text-xs text-gray-400">{agent.mrrShare.toFixed(1)}% of team</p>
+                      <p className="text-green-400 font-bold text-lg">${agent.totalMRR.toFixed(2)}</p>
+                      <p className="text-xs text-gray-400">{agent.mrrShare.toFixed(1)}% of team MRR</p>
+                    </div>
+                    
+                    {/* Enhanced Hover Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+                      <div className="bg-gray-800 border border-white/20 rounded-lg p-3 shadow-xl min-w-[200px]">
+                        <h4 className="text-white font-semibold mb-2">{agent.name || agent.email}</h4>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">MRR:</span>
+                            <span className="text-green-400 font-medium">${agent.totalMRR.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">TCV:</span>
+                            <span className="text-blue-400 font-medium">${agent.totalTCV.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Sales Count:</span>
+                            <span className="text-white">{agent.salesCount}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Avg Deal:</span>
+                            <span className="text-purple-400">${agent.avgDealSize.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Team Share:</span>
+                            <span className="text-yellow-400">{agent.mrrShare.toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -232,7 +284,12 @@ export const OverviewPage: React.FC = () => {
                       label={({ name, mrrShare }) => `${name?.split(' ')[0] || 'Agent'}: ${mrrShare.toFixed(1)}%`}
                     >
                       {leaderboardData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.isCurrentUser ? '#3b82f6' : COLORS[index % COLORS.length]}
+                          stroke={entry.isCurrentUser ? '#60a5fa' : 'none'}
+                          strokeWidth={entry.isCurrentUser ? 2 : 0}
+                        />
                       ))}
                     </Pie>
                     <Tooltip 
@@ -242,7 +299,10 @@ export const OverviewPage: React.FC = () => {
                         borderRadius: '8px',
                         color: '#fff'
                       }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, 'MRR']}
+                      formatter={(value: number, name: string, props: any) => [
+                        `$${value.toFixed(2)}`, 
+                        `MRR (${props.payload.mrrShare.toFixed(1)}%)`
+                      ]}
                     />
                   </PieChart>
                 </ResponsiveContainer>
