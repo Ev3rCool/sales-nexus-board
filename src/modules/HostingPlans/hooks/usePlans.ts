@@ -16,35 +16,42 @@ export const usePlans = () => {
       console.log('🔍 Fetching hosting plans...')
       
       try {
-        // First, check if we can access the table at all
-        const { data: testData, error: testError } = await supabase
+        console.log('🔍 Starting to fetch hosting plans...')
+        
+        // Fetch hosting plans first
+        const { data: plansData, error: plansError } = await supabase
           .from('hosting_plans')
-          .select('count')
-          .limit(1)
-
-        if (testError) {
-          console.error('❌ Test query failed:', testError)
-          throw new Error(`Database access error: ${testError.message}`)
-        }
-
-        console.log('✅ Database access confirmed')
-
-        // Now fetch the actual data
-        const { data, error } = await supabase
-          .from('hosting_plans')
-          .select(`
-            *,
-            plan_discounts (*)
-          `)
+          .select('*')
           .order('name')
 
-        if (error) {
-          console.error('❌ Error fetching hosting plans:', error)
-          throw new Error(`Failed to fetch hosting plans: ${error.message}`)
+        if (plansError) {
+          console.error('❌ Error fetching hosting plans:', plansError)
+          throw new Error(`Failed to fetch hosting plans: ${plansError.message}`)
         }
 
-        console.log('✅ Hosting plans fetched successfully:', data?.length || 0, 'plans')
-        return data || []
+        console.log('✅ Hosting plans fetched:', plansData?.length || 0, 'plans')
+
+        // Fetch plan discounts separately
+        const { data: discountsData, error: discountsError } = await supabase
+          .from('plan_discounts')
+          .select('*')
+
+        if (discountsError) {
+          console.error('❌ Error fetching plan discounts:', discountsError)
+          // Don't throw error for discounts, just log and continue
+          console.log('⚠️ Continuing without discounts data')
+        }
+
+        console.log('✅ Plan discounts fetched:', discountsData?.length || 0, 'discounts')
+
+        // Combine the data
+        const combinedData = plansData?.map(plan => ({
+          ...plan,
+          plan_discounts: discountsData?.filter(discount => discount.plan_id === plan.id) || []
+        })) || []
+
+        console.log('✅ Combined data prepared:', combinedData.length, 'plans with discounts')
+        return combinedData
       } catch (error) {
         console.error('❌ Unexpected error in usePlans:', error)
         throw error
