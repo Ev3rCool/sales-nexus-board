@@ -1,67 +1,45 @@
-// src/modules/HostingPlans/hooks/usePlans.ts
 
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import type { Database } from '@/integrations/supabase/types'
 
-/** Raw row from hosting_plans table */
+/** One row from hosting_plans table */
 type HostingPlan = Database['public']['Tables']['hosting_plans']['Row']
-/** Raw row from plan_discounts table */
+/** One row from plan_discounts table */
 type PlanDiscount = Database['public']['Tables']['plan_discounts']['Row']
 
-/** A HostingPlan plus its associated discounts */
+/**
+ * A hosting plan with its embedded discounts.
+ * We'll use PostgREST's `select('*, plan_discounts(*)')` syntax.
+ */
 export interface HostingPlanWithDiscounts extends HostingPlan {
   plan_discounts: PlanDiscount[]
 }
 
-/**
- * usePlans
- * Fetches all hosting_plans and their plan_discounts in one hook.
- */
 export const usePlans = () => {
-  console.log('💡 [usePlans] hook init')  
+  console.log('[usePlans] hook mounted')
 
   return useQuery<HostingPlanWithDiscounts[], Error>({
     queryKey: ['hosting-plans'],
     queryFn: async () => {
-      console.log('🔍 [usePlans] queryFn start')
+      console.log('[usePlans] fetching from Supabase…')
 
-      // 1️⃣ Fetch base plans
-      const { data: plansData, error: plansError } = await supabase
+      const { data, error } = await supabase
         .from('hosting_plans')
-        .select('*')
+        // this will pull each plan plus its discounts in one request:
+        .select('*, plan_discounts(*)')
         .order('name', { ascending: true })
 
-      if (plansError) {
-        console.error('❌ [usePlans] plans fetch error', plansError)
-        throw plansError
-      }
-      console.log(`✅ [usePlans] fetched ${plansData?.length} plans`)
-
-      // 2️⃣ Fetch discounts
-      const { data: discountsData, error: discountsError } = await supabase
-        .from('plan_discounts')
-        .select('*')
-
-      if (discountsError) {
-        console.warn('⚠️ [usePlans] discounts fetch error — continuing without discounts', discountsError)
-      } else {
-        console.log(`✅ [usePlans] fetched ${discountsData?.length || 0} discounts`)
+      if (error) {
+        console.error('[usePlans] ❌ fetch error', error)
+        throw error
       }
 
-      // 3️⃣ Merge them together
-      const combined: HostingPlanWithDiscounts[] = (plansData || []).map(plan => ({
-        ...plan,
-        plan_discounts: (discountsData || []).filter(d => d.plan_id === plan.id),
-      }))
-      console.log(`🔗 [usePlans] merged into ${combined.length} plans with discounts`)
-
-      return combined
+      console.log(`[usePlans] ✅ fetched ${data?.length ?? 0} plans`)
+      return data!
     },
-    // Don't refetch on focus/mount—just once
-    staleTime: 1000 * 60 * 10,
+    // default behavior: run on mount, no extra options needed
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
     retry: false,
   })
 }
