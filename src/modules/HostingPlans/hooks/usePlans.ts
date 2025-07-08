@@ -4,59 +4,64 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import type { Database } from '@/integrations/supabase/types'
 
-/** The shape of one row in hosting_plans */
+/** Raw row from hosting_plans table */
 type HostingPlan = Database['public']['Tables']['hosting_plans']['Row']
-/** The shape of one row in plan_discounts */
+/** Raw row from plan_discounts table */
 type PlanDiscount = Database['public']['Tables']['plan_discounts']['Row']
 
-/** A hosting plan with its array of discounts attached */
+/** A HostingPlan plus its associated discounts */
 export interface HostingPlanWithDiscounts extends HostingPlan {
   plan_discounts: PlanDiscount[]
 }
 
 /**
- * Fetches all hosting_plans + their discounts.
- * React-Query will flip isLoading→false when done.
+ * usePlans
+ * Fetches all hosting_plans and their plan_discounts in one hook.
  */
 export const usePlans = () => {
+  console.log('💡 [usePlans] hook init')  
+
   return useQuery<HostingPlanWithDiscounts[], Error>({
     queryKey: ['hosting-plans'],
     queryFn: async () => {
-      console.log('🔍 [usePlans] Starting fetch of hosting plans')
+      console.log('🔍 [usePlans] queryFn start')
 
-      // 1) fetch base plans
+      // 1️⃣ Fetch base plans
       const { data: plansData, error: plansError } = await supabase
         .from('hosting_plans')
         .select('*')
         .order('name', { ascending: true })
 
       if (plansError) {
-        console.error('❌ [usePlans] Error fetching hosting_plans:', plansError)
+        console.error('❌ [usePlans] plans fetch error', plansError)
         throw plansError
       }
-      console.log(`✅ [usePlans] Fetched ${plansData?.length} plans`)
+      console.log(`✅ [usePlans] fetched ${plansData?.length} plans`)
 
-      // 2) fetch discounts
+      // 2️⃣ Fetch discounts
       const { data: discountsData, error: discountsError } = await supabase
         .from('plan_discounts')
         .select('*')
+
       if (discountsError) {
-        console.warn('⚠️ [usePlans] Error fetching plan_discounts – continuing without discounts', discountsError)
+        console.warn('⚠️ [usePlans] discounts fetch error — continuing without discounts', discountsError)
       } else {
-        console.log(`✅ [usePlans] Fetched ${discountsData.length} discounts`)
+        console.log(`✅ [usePlans] fetched ${discountsData?.length || 0} discounts`)
       }
 
-      // 3) merge them
+      // 3️⃣ Merge them together
       const combined: HostingPlanWithDiscounts[] = (plansData || []).map(plan => ({
         ...plan,
         plan_discounts: (discountsData || []).filter(d => d.plan_id === plan.id),
       }))
-      console.log(`🔗 [usePlans] Merged into ${combined.length} plans with discounts`)
+      console.log(`🔗 [usePlans] merged into ${combined.length} plans with discounts`)
 
       return combined
     },
-    staleTime: 1000 * 60 * 5,      // 5m
+    // Don't refetch on focus/mount—just once
+    staleTime: 1000 * 60 * 10,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
     retry: false,
   })
 }
