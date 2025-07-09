@@ -24,37 +24,44 @@ export const usePlans = () => {
     queryFn: async () => {
       console.log('[usePlans] fetching from Supabase…')
 
-      // 1) Fetch base plans
-      const { data: plansData, error: plansError } = await supabase
-        .from('hosting_plans')
-        .select('*')
-        .order('name', { ascending: true })
+      try {
+        // 1) Fetch base plans
+        console.log('[usePlans] 🔄 fetching hosting_plans...')
+        const { data: plansData, error: plansError } = await supabase
+          .from('hosting_plans')
+          .select('*')
+          .order('name', { ascending: true })
 
-      if (plansError) {
-        console.error('[usePlans] ❌ plans fetch error', plansError)
-        throw plansError
+        if (plansError) {
+          console.error('[usePlans] ❌ plans fetch error', plansError)
+          throw plansError
+        }
+        console.log(`[usePlans] ✅ fetched ${plansData?.length ?? 0} plans`, plansData)
+
+        // 2) Fetch discounts 
+        console.log('[usePlans] 🔄 fetching plan_discounts...')
+        const { data: discountsData, error: discountsError } = await supabase
+          .from('plan_discounts')
+          .select('*')
+
+        if (discountsError) {
+          console.warn('[usePlans] ⚠️ discounts fetch error - continuing without discounts', discountsError)
+        } else {
+          console.log(`[usePlans] ✅ fetched ${discountsData?.length ?? 0} discounts`, discountsData)
+        }
+
+        // 3) Combine them
+        const combined: HostingPlanWithDiscounts[] = (plansData || []).map(plan => ({
+          ...plan,
+          plan_discounts: (discountsData || []).filter(d => d.plan_id === plan.id),
+        }))
+        
+        console.log(`[usePlans] 🔗 combined into ${combined.length} plans with discounts`, combined)
+        return combined
+      } catch (error) {
+        console.error('[usePlans] ❌ unexpected error:', error)
+        throw error
       }
-      console.log(`[usePlans] ✅ fetched ${plansData?.length ?? 0} plans`)
-
-      // 2) Fetch discounts 
-      const { data: discountsData, error: discountsError } = await supabase
-        .from('plan_discounts')
-        .select('*')
-
-      if (discountsError) {
-        console.warn('[usePlans] ⚠️ discounts fetch error - continuing without discounts', discountsError)
-      } else {
-        console.log(`[usePlans] ✅ fetched ${discountsData?.length ?? 0} discounts`)
-      }
-
-      // 3) Combine them
-      const combined: HostingPlanWithDiscounts[] = (plansData || []).map(plan => ({
-        ...plan,
-        plan_discounts: (discountsData || []).filter(d => d.plan_id === plan.id),
-      }))
-      
-      console.log(`[usePlans] 🔗 combined into ${combined.length} plans with discounts`)
-      return combined
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 3, // Allow retries
