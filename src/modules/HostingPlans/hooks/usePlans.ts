@@ -56,8 +56,9 @@ export const usePlans = () => {
       console.log(`[usePlans] 🔗 combined into ${combined.length} plans with discounts`)
       return combined
     },
-    // default behavior: run on mount, no extra options needed
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 3, // Allow retries
+    retryDelay: 1000, // Wait 1 second between retries
     refetchOnWindowFocus: false,
-    retry: false,
   })
 }
