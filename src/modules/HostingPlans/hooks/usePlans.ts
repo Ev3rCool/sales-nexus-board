@@ -24,19 +24,37 @@ export const usePlans = () => {
     queryFn: async () => {
       console.log('[usePlans] fetching from Supabase…')
 
-      const { data, error } = await supabase
+      // 1) Fetch base plans
+      const { data: plansData, error: plansError } = await supabase
         .from('hosting_plans')
-        // this will pull each plan plus its discounts in one request:
-        .select('*, plan_discounts(*)')
+        .select('*')
         .order('name', { ascending: true })
 
-      if (error) {
-        console.error('[usePlans] ❌ fetch error', error)
-        throw error
+      if (plansError) {
+        console.error('[usePlans] ❌ plans fetch error', plansError)
+        throw plansError
+      }
+      console.log(`[usePlans] ✅ fetched ${plansData?.length ?? 0} plans`)
+
+      // 2) Fetch discounts 
+      const { data: discountsData, error: discountsError } = await supabase
+        .from('plan_discounts')
+        .select('*')
+
+      if (discountsError) {
+        console.warn('[usePlans] ⚠️ discounts fetch error - continuing without discounts', discountsError)
+      } else {
+        console.log(`[usePlans] ✅ fetched ${discountsData?.length ?? 0} discounts`)
       }
 
-      console.log(`[usePlans] ✅ fetched ${data?.length ?? 0} plans`)
-      return data!
+      // 3) Combine them
+      const combined: HostingPlanWithDiscounts[] = (plansData || []).map(plan => ({
+        ...plan,
+        plan_discounts: (discountsData || []).filter(d => d.plan_id === plan.id),
+      }))
+      
+      console.log(`[usePlans] 🔗 combined into ${combined.length} plans with discounts`)
+      return combined
     },
     // default behavior: run on mount, no extra options needed
     refetchOnWindowFocus: false,
