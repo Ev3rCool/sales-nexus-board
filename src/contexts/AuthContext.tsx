@@ -122,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchOrCreateProfile = async (user: User) => {
     try {
       console.log('🔍 AuthProvider: Fetching profile for user:', user.id)
+      console.log('🔍 AuthProvider: User details:', { email: user.email, metadata: user.user_metadata })
       
       // First try to fetch existing profile
       const { data, error } = await supabase
@@ -130,14 +131,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('id', user.id)
         .maybeSingle()
 
+      console.log('🔍 AuthProvider: Profile query result:', { data, error })
+
       if (error) {
         console.error('❌ AuthProvider: Error fetching profile:', error)
         throw error
       }
 
       if (data) {
-        console.log('✅ AuthProvider: Profile found:', data)
+        console.log('✅ AuthProvider: Profile found and setting:', data)
         setProfile(data)
+        console.log('✅ AuthProvider: Profile state updated successfully')
       } else {
         // Profile doesn't exist, create it
         console.log('🔍 AuthProvider: Profile not found, creating new profile...')
@@ -149,11 +153,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role: 'agent' as const
         }
 
+        console.log('🔍 AuthProvider: Creating profile with data:', newProfile)
+
         const { data: createdProfile, error: insertError } = await supabase
           .from('users')
           .insert(newProfile)
           .select()
           .single()
+
+        console.log('🔍 AuthProvider: Profile creation result:', { createdProfile, insertError })
 
         if (insertError) {
           console.error('❌ AuthProvider: Error creating profile:', insertError)
@@ -165,6 +173,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('❌ AuthProvider: Error in fetchOrCreateProfile:', error)
+      console.error('❌ AuthProvider: Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
       throw error
     }
   }
