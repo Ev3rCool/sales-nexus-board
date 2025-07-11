@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react'
 import { CategorySelector } from './CategorySelector'
 import { PlanGrid } from './PlanGrid'
 import { BillingCycleGrid } from './BillingCycleGrid'
@@ -18,7 +18,7 @@ import type { Database } from '@/integrations/supabase/types'
 
 const SalesEntryFormComponent: React.FC = () => {
   const { user, profile } = useAuth()
-  const { data: plans, isLoading: plansLoading, error: plansError } = usePlans()
+  const { data: plans, isLoading: plansLoading, error: plansError, refetch: refetchPlans } = usePlans()
   const createSalesEntry = useCreateSalesEntry()
 
   // Step management
@@ -155,11 +155,29 @@ const SalesEntryFormComponent: React.FC = () => {
 
     try {
       console.log('🚀 Creating sales entry...')
+      
+      // Map billing cycle to enum value
+      const billingCycleMap: Record<string, Database['public']['Enums']['billing_cycle']> = {
+        'M': 'monthly',
+        'Q': 'quarterly',
+        'S-A': 'semi-annual',
+        'A': 'annual',
+        'monthly': 'monthly',
+        'quarterly': 'quarterly',
+        'semi-annual': 'semi-annual',
+        'annual': 'annual'
+      }
+
+      const mappedBillingCycle = billingCycleMap[formData.billingCycle]
+      if (!mappedBillingCycle) {
+        throw new Error(`Invalid billing cycle: ${formData.billingCycle}`)
+      }
+
       const result = await createSalesEntry.mutateAsync({
         agent_id: user.id,
         plan_id: formData.planId,
         date: formData.date,
-        billing_cycle: formData.billingCycle as Database['public']['Enums']['billing_cycle'],
+        billing_cycle: mappedBillingCycle,
         discount_pct: formData.discountPct,
         subscribers_count: formData.subscribersCount,
         order_link: formData.orderLink || null,
@@ -209,16 +227,30 @@ const SalesEntryFormComponent: React.FC = () => {
     )
   }
 
-  // Error state
+  // Error state with retry option
   if (plansError) {
     return (
       <Card className="bg-white/5 backdrop-blur-xl border-white/10">
         <CardContent className="p-6">
           <div className="text-red-400">
-            <p className="font-semibold">❌ Error loading hosting plans</p>
-            <p className="text-sm mt-1">{plansError.message}</p>
-            <p className="text-xs mt-2 text-gray-400">
-              Check the browser console for more details.
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle className="h-5 w-5" />
+              <p className="font-semibold">Failed to load hosting plans</p>
+            </div>
+            <p className="text-sm mb-4">{plansError.message}</p>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => refetchPlans()}
+                variant="outline"
+                size="sm"
+                className="bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
+            <p className="text-xs mt-3 text-gray-400">
+              If this problem persists, check the browser console for more details.
             </p>
           </div>
         </CardContent>
@@ -232,10 +264,27 @@ const SalesEntryFormComponent: React.FC = () => {
       <Card className="bg-white/5 backdrop-blur-xl border-white/10">
         <CardContent className="p-6">
           <div className="text-yellow-400">
-            <p className="font-semibold">⚠️ No hosting plans found</p>
-            <p className="text-sm mt-1">
-              The hosting plans table appears to be empty. Please check if the sample data has been inserted.
+            <div className="flex items-center gap-2 mb-3">
+              <AlertCircle className="h-5 w-5" />
+              <p className="font-semibold">No hosting plans found</p>
+            </div>
+            <p className="text-sm mb-4">
+              The hosting plans table appears to be empty. This might be because:
             </p>
+            <ul className="text-sm space-y-1 mb-4 ml-4">
+              <li>• The database hasn't been seeded with sample data</li>
+              <li>• There's a permissions issue with the database</li>
+              <li>• The migration scripts haven't been run</li>
+            </ul>
+            <Button 
+              onClick={() => refetchPlans()}
+              variant="outline"
+              size="sm"
+              className="bg-yellow-500/10 border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/20"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry Loading
+            </Button>
           </div>
         </CardContent>
       </Card>
