@@ -24,6 +24,6 @@ export const usePlans = () => {
       return data as HostingPlanWithDiscounts[];
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: false
   });
 };
