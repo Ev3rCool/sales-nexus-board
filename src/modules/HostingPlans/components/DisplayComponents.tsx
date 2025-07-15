@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { format }s from 'date-fns';
+import { format } from 'date-fns';
 import { HostingPlanWithDiscounts } from '@/modules/HostingPlans/hooks/usePlans';
 import { SalesEntry } from '@/modules/HostingPlans/hooks/useSalesEntries';
 
