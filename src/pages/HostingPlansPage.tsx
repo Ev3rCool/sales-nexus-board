@@ -7,6 +7,7 @@ import { usePlans } from '@/modules/HostingPlans/hooks/usePlans'
 import { format } from 'date-fns'
 import { useAuth } from '@/contexts/AuthContext'
 import { RefreshCw, Database, AlertTriangle, CheckCircle, XCircle } from 'lucide-react'
+import { supabase } from '@/integrations/supabase/client'
 
 const HostingPlansPageComponent: React.FC = () => {
   const { user, profile } = useAuth()
@@ -105,7 +106,9 @@ const HostingPlansPageComponent: React.FC = () => {
         .limit(5)
       
       console.log('🔍 Manual test result:', { data, error })
-      alert(`Database test result:\nData: ${JSON.stringify(data, null, 2)}\nError: ${error?.message || 'None'}`)
+      alert(`Database test result:
+Data: ${JSON.stringify(data, null, 2)}
+Error: ${error?.message || 'None'}`)
     } catch (err) {
       console.error('🔍 Manual test error:', err)
       alert(`Database test failed: ${err}`)

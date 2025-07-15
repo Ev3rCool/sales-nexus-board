@@ -122,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchOrCreateProfile = async (user: User) => {
     try {
       console.log('🔍 AuthProvider: Fetching profile for user:', user.id)
-      console.log('🔍 AuthProvider: User details:', { email: user.email, metadata: user.user_metadata })
+      console.log('🔍 AuthProvider: User details:', { email: user.email, metadata: user.user_metadata, raw_user_meta_data: (user as any).raw_user_meta_data })
       
       // First try to fetch existing profile
       const { data, error } = await supabase
@@ -149,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newProfile = {
           id: user.id,
           email: user.email!,
-          name: user.user_metadata?.name || user.email?.split('@')[0] || null,
+          name: (user as any).raw_user_meta_data?.name || user.email?.split('@')[0] || null,
           role: 'agent' as const
         }
 
