@@ -20,79 +20,152 @@ export const usePlans = () => {
   return useQuery<HostingPlanWithDiscounts[], Error>({
     queryKey: ['hosting-plans'],
     queryFn: async () => {
-      console.log('[usePlans] fetching from Supabase…')
+      console.log('[usePlans] 🔄 Starting comprehensive fetch process...')
 
       try {
-        // Test basic connection first
-        console.log('[usePlans] 🔄 testing connection...')
-        const { data: testData, error: testError } = await supabase
+        // Step 1: Test basic Supabase connection
+        console.log('[usePlans] 🔄 Step 1: Testing Supabase connection...')
+        const { data: connectionTest, error: connectionError } = await supabase
           .from('hosting_plans')
           .select('count')
           .limit(1)
 
-        if (testError) {
-          console.error('[usePlans] ❌ connection test failed', testError)
-          throw new Error(`Database connection failed: ${testError.message}`)
+        if (connectionError) {
+          console.error('[usePlans] ❌ Step 1 FAILED - Connection error:', connectionError)
+          throw new Error(`Database connection failed: ${connectionError.message}`)
+        }
+        console.log('[usePlans] ✅ Step 1 PASSED - Connection successful')
+
+        // Step 2: Check authentication
+        console.log('[usePlans] 🔄 Step 2: Checking authentication...')
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        
+        if (authError) {
+          console.error('[usePlans] ❌ Step 2 FAILED - Auth error:', authError)
+          throw new Error(`Authentication failed: ${authError.message}`)
+        }
+        
+        if (!user) {
+          console.error('[usePlans] ❌ Step 2 FAILED - No authenticated user')
+          throw new Error('No authenticated user found')
+        }
+        
+        console.log('[usePlans] ✅ Step 2 PASSED - User authenticated:', user.email)
+
+        // Step 3: Check RLS policies by testing direct access
+        console.log('[usePlans] 🔄 Step 3: Testing RLS policies...')
+        const { data: rlsTest, error: rlsError } = await supabase
+          .from('hosting_plans')
+          .select('id, name')
+          .limit(1)
+
+        if (rlsError) {
+          console.error('[usePlans] ❌ Step 3 FAILED - RLS policy blocking access:', rlsError)
+          console.error('[usePlans] RLS Error details:', {
+            code: rlsError.code,
+            message: rlsError.message,
+            details: rlsError.details,
+            hint: rlsError.hint
+          })
+          throw new Error(`RLS policy error: ${rlsError.message}`)
+        }
+        
+        console.log('[usePlans] ✅ Step 3 PASSED - RLS allows access, sample data:', rlsTest)
+
+        // Step 4: Get full count of hosting plans
+        console.log('[usePlans] 🔄 Step 4: Checking hosting plans count...')
+        const { count, error: countError } = await supabase
+          .from('hosting_plans')
+          .select('*', { count: 'exact', head: true })
+
+        if (countError) {
+          console.error('[usePlans] ❌ Step 4 FAILED - Count error:', countError)
+          throw new Error(`Count query failed: ${countError.message}`)
         }
 
-        console.log('[usePlans] ✅ connection test passed')
+        console.log('[usePlans] ✅ Step 4 PASSED - Total hosting plans in database:', count)
 
-        // 1) Fetch base plans with better error handling
-        console.log('[usePlans] 🔄 fetching hosting_plans...')
+        if (count === 0) {
+          console.warn('[usePlans] ⚠️ Step 4 WARNING - Database has no hosting plans!')
+          return []
+        }
+
+        // Step 5: Fetch all hosting plans
+        console.log('[usePlans] 🔄 Step 5: Fetching all hosting plans...')
         const { data: plansData, error: plansError } = await supabase
           .from('hosting_plans')
           .select('*')
           .order('name', { ascending: true })
 
         if (plansError) {
-          console.error('[usePlans] ❌ plans fetch error', plansError)
+          console.error('[usePlans] ❌ Step 5 FAILED - Plans fetch error:', plansError)
           throw new Error(`Failed to fetch hosting plans: ${plansError.message}`)
         }
 
         if (!plansData || plansData.length === 0) {
-          console.warn('[usePlans] ⚠️ no hosting plans found')
+          console.warn('[usePlans] ⚠️ Step 5 WARNING - No plans returned despite count > 0')
           return []
         }
 
-        console.log(`[usePlans] ✅ fetched ${plansData.length} plans`, plansData)
+        console.log(`[usePlans] ✅ Step 5 PASSED - Fetched ${plansData.length} plans:`, 
+          plansData.map(p => ({ id: p.id, name: p.name, price: p.regular_price })))
 
-        // 2) Fetch discounts with better error handling
-        console.log('[usePlans] 🔄 fetching plan_discounts...')
+        // Step 6: Fetch plan discounts
+        console.log('[usePlans] 🔄 Step 6: Fetching plan discounts...')
         const { data: discountsData, error: discountsError } = await supabase
           .from('plan_discounts')
           .select('*')
 
         if (discountsError) {
-          console.warn('[usePlans] ⚠️ discounts fetch error - continuing without discounts', discountsError)
+          console.warn('[usePlans] ⚠️ Step 6 WARNING - Discounts fetch error (continuing without):', discountsError)
         } else {
-          console.log(`[usePlans] ✅ fetched ${discountsData?.length ?? 0} discounts`, discountsData)
+          console.log(`[usePlans] ✅ Step 6 PASSED - Fetched ${discountsData?.length || 0} discounts`)
         }
 
-        // 3) Combine them
+        // Step 7: Combine data
+        console.log('[usePlans] 🔄 Step 7: Combining plans with discounts...')
         const combined: HostingPlanWithDiscounts[] = plansData.map(plan => ({
           ...plan,
           plan_discounts: (discountsData || []).filter(d => d.plan_id === plan.id),
         }))
         
-        console.log(`[usePlans] 🔗 combined into ${combined.length} plans with discounts`, combined)
+        console.log(`[usePlans] ✅ Step 7 PASSED - Combined ${combined.length} plans with discounts`)
+        console.log('[usePlans] 🎉 SUCCESS - Final result:', combined.map(p => ({
+          id: p.id,
+          name: p.name,
+          price: p.regular_price,
+          discounts: p.plan_discounts.length
+        })))
+
         return combined
+
       } catch (error) {
-        console.error('[usePlans] ❌ unexpected error:', error)
+        console.error('[usePlans] ❌ CRITICAL ERROR in queryFn:', error)
         
-        // Provide more specific error information
+        // Enhanced error reporting
         if (error instanceof Error) {
+          console.error('[usePlans] Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          })
           throw new Error(`Hosting plans loading failed: ${error.message}`)
         } else {
+          console.error('[usePlans] Unknown error type:', typeof error, error)
           throw new Error('Hosting plans loading failed: Unknown error occurred')
         }
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: (failureCount, error) => {
-      console.log(`[usePlans] retry attempt ${failureCount}:`, error?.message)
+      console.log(`[usePlans] 🔄 Retry attempt ${failureCount + 1}/3:`, error?.message)
       return failureCount < 2 // Only retry twice
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    retryDelay: (attemptIndex) => {
+      const delay = Math.min(1000 * 2 ** attemptIndex, 30000)
+      console.log(`[usePlans] ⏱️ Retrying in ${delay}ms...`)
+      return delay
+    },
     refetchOnWindowFocus: false,
   })
 }
