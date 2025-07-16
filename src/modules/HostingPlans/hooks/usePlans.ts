@@ -7,6 +7,8 @@ type PlanDiscount = Database['public']['Tables']['plan_discounts']['Row'];
 
 export interface HostingPlanWithDiscounts extends Database['public']['Tables']['hosting_plans']['Row'] {
   plan_discounts: PlanDiscount[];
+  description: string;
+  features: string[];
 }
 
 // Custom hook to fetch hosting plans

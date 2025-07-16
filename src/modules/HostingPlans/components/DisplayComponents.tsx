@@ -9,8 +9,8 @@ export const PlanCard: React.FC<{ plan: HostingPlanWithDiscounts }> = ({ plan })
     <CardHeader>
       <CardTitle className="text-white flex justify-between items-start">
         {plan.name}
-        <Badge variant={plan.plan_category === 'Shared' ? 'secondary' : 'default'}>
-          {plan.plan_category}
+        <Badge variant={plan.plan_type === 'Shared' ? 'secondary' : 'default'}>
+          {plan.plan_type}
         </Badge>
       </CardTitle>
       <p className="text-gray-400 text-sm pt-2">{plan.description}</p>
